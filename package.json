@@ -1,0 +1,27 @@
+{
+  "name": "rclauncher",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.rclauncher.app",
+    "productName": "RCLauncher",
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game"
+    }
+  },
+  "dependencies": {
+    "electron": "^43.3.0",
+    "eml-lib": "^2.6.0",
+    "minecraft-launcher-core": "^3.18.2"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.0.0"
+  }
+}

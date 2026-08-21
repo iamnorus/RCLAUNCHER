@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>RCLauncher Terminal</title>
+    <style>
+        * { box-sizing: border-box; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        body { background: #0c0c0c; color: #00ff00; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; justify-content: flex-start; height: 100vh; margin: 0; padding: 20px; overflow: hidden; }
+        .watermark-bottom { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 11px; color: rgba(255, 255, 255, 0.3); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; letter-spacing: 0.5px; pointer-events: none; z-index: 100; white-space: nowrap; }
+        .lang-selector { position: absolute; bottom: 12px; right: 20px; display: flex; gap: 8px; z-index: 10; }
+        .lang-btn { background: #1a1a1a; color: #00ff00; border: 1px solid #00ff00; padding: 4px 10px; font-family: 'Courier New', Courier, monospace; cursor: pointer; border-radius: 4px; font-weight: bold; opacity: 0.6; font-size: 12px; }
+        .lang-btn.active { opacity: 1; background: #00ff00; color: #0c0c0c; box-shadow: 0 0 10px rgba(0, 255, 0, 0.4); transform: scale(1.05); }
+        .terminal-container { display: flex; flex-direction: column; justify-content: flex-start; width: 100%; height: calc(100vh - 60px); opacity: 1; transform: scale(1); filter: blur(0); }
+        .terminal-container.fade-out { opacity: 0; transform: scale(0.95); filter: blur(5px); pointer-events: none; }
+        #output { font-family: 'Courier New', Courier, monospace; white-space: pre-wrap; margin-bottom: 15px; line-height: 1.5; max-height: calc(80vh - 50px); overflow-y: auto; text-shadow: 0 0 5px rgba(0, 255, 0, 0.3); }
+        .input-line { display: flex; align-items: center; }
+        .prompt-symbol { margin-right: 8px; font-weight: bold; animation: blink-caret 1s infinite; }
+        @keyframes blink-caret { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        #terminal-input { background: transparent; border: none; color: #00ff00; font-family: 'Courier New', Courier, monospace; font-size: 16px; outline: none; flex-grow: 1; caret-color: #00ff00; }
+        .ui-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #121212, #1a1a1a); color: white; position: absolute; top: 0; left: 0; width: 100%; opacity: 0; pointer-events: none; }
+        .ui-screen.active { opacity: 1; pointer-events: auto; }
+        #transition-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(18, 18, 18, 0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; opacity: 0; pointer-events: none; backdrop-filter: blur(0px); transition: opacity 0.3s ease, backdrop-filter 0.3s ease; }
+        #transition-overlay.animate { opacity: 1; backdrop-filter: blur(15px); pointer-events: auto; }
+        .transition-text { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: 2px; text-transform: uppercase; }
+        .corner-brand { position: absolute; top: 22px; left: 28px; display: flex; flex-direction: column; align-items: flex-start; z-index: 20; background: rgba(26, 26, 26, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 14px; border-radius: 8px; backdrop-filter: blur(6px); }
+        .logo-versions { font-size: 10px; color: #777; margin-bottom: 1px; font-family: 'Courier New', Courier, monospace; }
+        .app-logo { font-size: 18px; font-weight: 950; letter-spacing: 1px; background: linear-gradient(135deg, #00ff00, #4CAF50); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 12px rgba(0, 255, 0, 0.25); white-space: nowrap; }
+        .corner-play-container { position: absolute; bottom: 35px; right: 110px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .btn-play { padding: 14px 38px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; background: linear-gradient(135deg, #4CAF50, #388E3C); color: white; cursor: pointer; box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4); transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
+        .btn-play:hover { transform: translateY(-3px) scale(1.03); background: linear-gradient(135deg, #53df58, #40a044); box-shadow: 0 6px 25px rgba(76, 175, 80, 0.6); }
+        .top-controls-bar { position: absolute; top: 22px; right: 100px; display: flex; gap: 12px; z-index: 25; }
+        .top-bar-btn { background: #1f1f1f; border: 1px solid #333; color: #fff; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 14px; }
+        .top-bar-btn:hover { background: #2a2a2a; border-color: #4CAF50; box-shadow: 0 0 12px rgba(76, 175, 80, 0.3); }
+        .right-wall-tabs { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 90; }
+        .wall-tab-btn { background: #181818; color: #aaa; border: 1px solid #333; border-right: none; padding: 14px 12px; border-radius: 10px 0 0 10px; cursor: pointer; font-weight: bold; writing-mode: vertical-rl; text-orientation: mixed; font-size: 12px; letter-spacing: 1px; box-shadow: -4px 0 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .wall-tab-btn:hover { background: #252525; color: #00ff00; border-color: #00ff00; }
+        .wall-tab-btn.active { background: #00ff00; color: #0c0c0c; border-color: #00ff00; box-shadow: -4px 0 15px rgba(0, 255, 0, 0.4); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-box { background: #151515; border: 1px solid #333; border-radius: 12px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px; max-height: 85vh; overflow-y: auto; }
+        .modal-small { width: 400px; }
+        .modal-large { width: 680px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #282828; padding-bottom: 10px; }
+        .modal-header h3 { margin: 0; font-size: 18px; color: #4CAF50; }
+        .modal-close { background: transparent; border: none; color: #aaa; font-size: 22px; cursor: pointer; }
+        .modal-close:hover { color: #fff; }
+        .card-actions-overlay { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 1 !important; z-index: 10; }
+        .card-action-btn { background: #ff2a2a; border: 1px solid #ff5555; color: #ffffff; border-radius: 4px; padding: 2px 5px; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 8px rgba(255, 0, 0, 0.6); }
+        .card-action-btn.btn-cfg { background: #00a4ef; border-color: #00d0ff; box-shadow: 0 0 8px rgba(0, 164, 239, 0.6); }
+        .card-action-btn:hover { transform: scale(1.1); }
+        .confirm-box { text-align: center; display: flex; flex-direction: column; gap: 15px; }
+        .confirm-buttons { display: flex; gap: 12px; justify-content: center; }
+        .btn-danger { background: #e53935; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-danger:hover { background: #d32f2f; }
+        .btn-secondary { background: #333; color: white; border: 1px solid #555; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-secondary:hover { background: #444; }
+        .instances-grid-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-content: center; max-width: 700px; max-height: 55vh; overflow-y: auto; padding: 10px; }
+        .instance-card { background: #181818; border: 1px solid #2a2a2a; border-radius: 10px; width: 140px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; position: relative; }
+        .instance-card:hover { background: #222222; transform: translateY(-4px) scale(1.02); }
+        .instance-card.selected { background: #254d27; color: #ffffff; border-color: #4CAF50; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3); }
+        .instance-card .card-logo-placeholder { width: 50px; height: 50px; border-radius: 8px; background: #252525; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #aaa; font-weight: bold; }
+        .instance-card h4 { margin: 0; font-size: 13px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+        .instance-card span { font-size: 10px; color: #aaa; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+        .form-group label { font-size: 12px; color: #aaa; font-weight: bold; }
+        .form-group input, .form-group select { background: #121212; border: 1px solid #333; color: white; padding: 10px; border-radius: 6px; font-size: 14px; }
+        .form-group input:read-only { background: #090909; color: #00ff00; border-color: #222; font-family: 'Courier New', Courier, monospace; }
+        .form-group input:focus, .form-group select:focus { border-color: #4CAF50; outline: none; }
+        .side-by-side-container { display: flex; gap: 30px; justify-content: center; align-items: stretch; max-width: 800px; padding: 20px; }
+        .card-option { background: #181818; border: 1px solid #333; border-radius: 12px; padding: 25px; width: 320px; display: flex; flex-direction: column; justify-content: space-between; text-align: center; }
+        .btn-action { padding: 12px 20px; border-radius: 8px; border: none; font-size: 15px; font-weight: bold; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-offline { background: linear-gradient(135deg, #4CAF50, #388E3C); color: white; }
+        .btn-microsoft { background: linear-gradient(135deg, #00a4ef, #0078d4); color: white; }
+        .mod-result-card { background: #1f1f1f; border: 1px solid #333; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .mod-result-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .mod-result-card:hover { border-color: #4CAF50; }
+        .mod-icon { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; background: #2a2a2a; }
+        .platform-tabs { display: flex; gap: 12px; border-bottom: 1px solid #333; padding-bottom: 12px; }
+        .platform-btn { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #888; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .platform-btn.active.modrinth { background: #1bd96a; color: #000; border-color: #1bd96a; box-shadow: 0 0 12px rgba(27, 217, 106, 0.4); }
+        .platform-btn.active.curseforge { background: #f16436; color: #fff; border-color: #f16436; box-shadow: 0 0 12px rgba(241, 100, 54, 0.4); }
+        .type-tabs { display: flex; gap: 8px; }
+        .type-btn { flex: 1; background: #121212; border: 1px solid #333; color: #aaa; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .type-btn.active { background: #333; color: #fff; border-color: #555; }
+        .account-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 8px 12px; border-radius: 6px; border: 1px solid #2a2a2a; }
+        .account-item.active-acc { border-color: #00a4ef; background: #0d2130; }
+        .progress-box { display: none; flex-direction: column; gap: 6px; background: #111; padding: 10px; border-radius: 6px; border: 1px solid #222; }
+        .progress-bar-container { width: 100%; height: 12px; background: #222; border-radius: 6px; overflow: hidden; position: relative; }
+        .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4CAF50, #00ff00); transition: width 0.2s linear; }
+        .progress-text { font-size: 11px; color: #aaa; display: flex; justify-content: space-between; }
+        .error-alert-box { background: #2a0e0e; border: 1px solid #ff3333; color: #ff9999; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.4; }
+        .btn-del-account { background: transparent; border: none; color: #ff5555; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-del-account:hover { color: #ff2a2a; transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+    <div class="watermark-bottom">Este launcher fue hecho por iamnorus | Sigueme en TikTok como iamnorus</div>
+
+    <div id="transition-overlay">
+        <div class="transition-text" id="transition-label">Cargando...</div>
+    </div>
+
+    <div class="terminal-container" id="terminal-screen">
+        <div id="output"></div>
+        <div class="input-line">
+            <span class="prompt-symbol">&gt;</span>
+            <input type="text" id="terminal-input" autofocus autocomplete="off" spellcheck="false">
+        </div>
+    </div>
+
+    <div class="lang-selector" id="lang-container">
+        <button class="lang-btn active" id="btn-es">ES</button>
+        <button class="lang-btn" id="btn-us">US</button>
+    </div>
+
+    <div class="ui-screen" id="menu-ui">
+        <div class="side-by-side-container">
+            <div class="card-option">
+                <div>
+                    <h2 style="color: #4CAF50;" id="txt-local-mode">Modo Local</h2>
+                    <p id="txt-local-desc">Juega libremente sin necesidad de una cuenta oficial.</p>
+                </div>
+                <button class="btn-action btn-offline" onclick="triggerTransition('offline-ui')" id="btn-select-local">Seleccionar Local</button>
+            </div>
+
+            <div class="card-option">
+                <div>
+                    <h2 style="color: #00a4ef;" id="txt-ms-mode">Microsoft</h2>
+                    <p id="txt-ms-desc">Inicia sesión con tu cuenta oficial de Minecraft.</p>
+                </div>
+                <button class="btn-action btn-microsoft" onclick="triggerTransition('microsoft-ui')" id="btn-select-ms">Seleccionar Microsoft</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="ui-screen" id="offline-ui">
+        <div class="corner-brand">
+            <div class="logo-versions">v1.0.0</div>
+            <div class="app-logo">RCLauncher</div>
+        </div>
+        
+        <div class="top-controls-bar">
+            <button class="top-bar-btn" onclick="openModal('versionsModal')">
+                <span id="btn-top-install">Instalar Versión / Loader</span>
+            </button>
+            <button class="top-bar-btn" onclick="openModsModal()">
+                <span id="btn-top-mods">Mods</span>
+            </button>
+            <button class="top-bar-btn" onclick="openModpacksModal()">
+                <span id="btn-top-modpacks">Modpacks</span>
+            </button>
+            <button class="top-bar-btn" onclick="openModal('accountsModal')">
+                <span id="btn-top-accounts">Cuentas</span>
+            </button>
+        </div>
+
+        <div class="right-wall-tabs">
+            <button class="wall-tab-btn" onclick="openSettingsTab('general')">CONFIGURACIÓN</button>
+            <button class="wall-tab-btn" onclick="openSettingsTab('java')">RUNTIME JAVA</button>
+            <button class="wall-tab-btn" onclick="openSettingsTab('instance')">INSTANCIA ACTIVA</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; gap: 15px; width: 100%;">
+            <h2 style="margin: 0; color: #fff; font-size: 22px;" id="txt-saved-inst">Tus Instancias Guardadas</h2>
+            
+            <div class="instances-grid-container" id="instancesGridContainer"></div>
+
+            <p style="font-size: 13px; color: #888; margin: 0;">
+                <span id="lbl-acc">Cuenta</span>: <span style="color: #00a4ef; font-weight: bold;" id="display-active-account">Ninguna</span> | 
+                <span id="lbl-inst">Activa</span>: <span style="color: #ff9800; font-weight: bold;" id="display-active-instance">Ninguna</span>
+            </p>
+        </div>
+
+        <div class="corner-play-container">
+            <button class="btn-play" onclick="playGame()"><span id="btn-play-txt">Jugar</span></button>
+            <p style="font-size: 13px; color: #888;" id="status-offline">Listo para iniciar</p>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-box modal-large">
+            <div class="modal-header">
+                <h3 id="settings-modal-title">Ajustes del Launcher</h3>
+                <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 10px;">
+                <button class="type-btn" id="tab-btn-general" onclick="switchSettingsTab('general')">General</button>
+                <button class="type-btn" id="tab-btn-java" onclick="switchSettingsTab('java')">Java y Memoria</button>
+                <button class="type-btn" id="tab-btn-instance" onclick="switchSettingsTab('instance')">Configuración de Instancia</button>
+            </div>
+
+            <div id="tab-content-general" class="settings-tab-page" style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="form-group">
+                    <label>Directorio Raíz de RCLauncher</label>
+                    <input type="text" id="cfg-root-path" readonly value="C:/Users/Usuario/.rclauncher" />
+                </div>
+                <div class="form-group">
+                    <label>Idioma Predeterminado</label>
+                    <select onchange="setLanguage(this.value)">
+                        <option value="es">Español (ES)</option>
+                        <option value="us">English (US)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="tab-content-java" class="settings-tab-page" style="display: flex; flex-direction: column; gap: 12px; display: none;">
+                <div class="form-group">
+                    <label>Versión de Java Instalada / Detectada</label>
+                    <select id="cfg-java-version">
+                        <option value="21">Java 21</option>
+                        <option value="17">Java 17</option>
+                        <option value="8">Java 8</option>
+                        <option value="none">Sin Java Instalado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ruta ejecutable de Java (javaw.exe)</label>
+                    <input type="text" id="cfg-java-path" value="C:/Program Files/Java/jdk-21/bin/javaw.exe" />
+                </div>
+                <div class="form-group">
+                    <label>Asignación de Memoria RAM (MB)</label>
+                    <input type="number" id="cfg-ram-amount" value="4096" step="512" min="1024" max="32768" />
+                </div>
+            </div>
+
+            <div id="tab-content-instance" class="settings-tab-page" style="display: flex; flex-direction: column; gap: 12px; display: none;">
+                <div id="inst-settings-info" class="form-group">
+                    <label>Instancia Seleccionada</label>
+                    <input type="text" id="cfg-inst-name" value="Ninguna" readonly />
+                </div>
+                <div class="form-group">
+                    <label>Ruta de Archivos de la Instancia</label>
+                    <input type="text" id="cfg-inst-filepath" readonly value="Ninguna" />
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button class="btn-action btn-secondary" onclick="openInstanceFolder()">Abrir Carpeta de Instancia</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="errorModal">
+        <div class="modal-box modal-small">
+            <div class="modal-header">
+                <h3 style="color: #ff3333;" id="error-title">Error de Entorno</h3>
+                <button class="modal-close" onclick="closeModal('errorModal')">&times;</button>
+            </div>
+            <div class="error-alert-box" id="error-message-text"></div>
+            <button class="btn-action btn-secondary" onclick="closeModal('errorModal')">Aceptar</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="versionsModal">
+        <div class="modal-box modal-small">
+            <div class="modal-header">
+                <h3 id="txt-create-title">Crear Instancia</h3>
+                <button class="modal-close" onclick="closeModal('versionsModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label id="lbl-custom-name">Nombre Personalizado</label>
+                <input type="text" id="install-custom-name" placeholder="Ej: Mi Survival Fabric" />
+            </div>
+            <div class="form-group">
+                <label id="lbl-base-ver">Versión Base</label>
+                <select id="install-version-select"></select>
+            </div>
+            <div class="form-group">
+                <label id="lbl-loader-type">Tipo / Loader</label>
+                <select id="install-loader-select">
+                    <option value="vanilla">Vanilla (Sin Mods)</option>
+                    <option value="fabric">Fabric Loader</option>
+                    <option value="forge">Forge Loader</option>
+                </select>
+            </div>
+            <button class="btn-action btn-offline" style="margin-top: 10px;" onclick="installNewInstance()" id="btn-create-inst">Crear Instancia</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modsModal">
+        <div class="modal-box modal-large">
+            <div class="modal-header">
+                <h3 id="mods-target-title">Contenido para Instancia</h3>
+                <button class="modal-close" onclick="closeModal('modsModal')">&times;</button>
+            </div>
+            
+            <div class="platform-tabs">
+                <button class="platform-btn active modrinth" id="btn-provider-modrinth" onclick="switchProvider('modrinth')">Modrinth</button>
+                <button class="platform-btn curseforge" id="btn-provider-curseforge" onclick="switchProvider('curseforge')">CurseForge</button>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+                <input type="text" id="mod-search-input" placeholder="Buscar por nombre..." oninput="searchContentAPI()" />
+            </div>
+
+            <div class="progress-box" id="downloadProgressBox">
+                <div class="progress-text">
+                    <span id="downloadStatusText">Descargando...</span>
+                    <span id="downloadPercentText">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="downloadProgressBar"></div>
+                </div>
+            </div>
+
+            <div id="mods-search-results" style="display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box modal-small">
+            <div class="modal-header">
+                <h3 style="color: #e53935;" id="txt-del-title">Eliminar Instancia</h3>
+                <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+            </div>
+            <div class="confirm-box">
+                <p id="delete-confirm-text" style="color: #ccc; margin: 0;">¿Estás seguro de eliminar esta instancia?</p>
+                <div class="confirm-buttons">
+                    <button class="btn-danger" id="confirm-delete-btn">Eliminar</button>
+                    <button class="btn-secondary" onclick="closeModal('deleteModal')" id="btn-del-cancel">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="accountsModal">
+        <div class="modal-box modal-small">
+            <div class="modal-header">
+                <h3 id="txt-acc-title">Gestión de Cuentas</h3>
+                <button class="modal-close" onclick="closeModal('accountsModal')">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label id="lbl-local-user">Nombre de Usuario Local</label>
+                <input type="text" id="new-offline-name" placeholder="Ej: Steve" />
+                <button class="btn-action btn-offline" style="margin-top: 5px;" onclick="addOfflineAccount()" id="btn-save-acc">Guardar Cuenta</button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #282828; width: 100%; margin: 15px 0;">
+
+            <button class="btn-action btn-microsoft" onclick="addMicrosoftAccount()">
+                <svg style="width: 18px; height: 18px; margin-right: 8px;" viewBox="0 0 23 23">
+                    <path fill="#f3f3f3" d="M0 0h11v11H0z"/>
+                    <path fill="#7fb900" d="M12 0h11v11H12z"/>
+                    <path fill="#00a4ef" d="M0 12h11v11H0z"/>
+                    <path fill="#ffb900" d="M12 12h11v11H12z"/>
+                </svg>
+                Vincular Cuenta de Microsoft
+            </button>
+
+            <div id="accountsListContainer" style="display: flex; flex-direction: column; gap: 6px; margin-top: 15px; max-height: 200px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function installFabricAPI(version, targetPath) {
+            try {
+                const res = await fetch(`https://api.modrinth.com/v2/project/P7dR8mSH/version`, {
+                    headers: { 'User-Agent': 'RCLauncher/1.0.0' }
+                });
+                const versions = await res.json();
+                const matched = versions.find(v => v.game_versions.includes(version) && v.loaders.includes('fabric'));
+                
+                if (matched && matched.files.length > 0) {
+                    const primaryFile = matched.files.find(f => f.primary) || matched.files[0];
+                    simulateProgressDownload("Fabric API", primaryFile.url, targetPath, primaryFile.filename);
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        let accounts = [{ name: 'JugadorLocal', type: 'local' }];
+        let activeAccount = accounts[0];
+
+        let instances = [
+            { id: 1, name: 'Survival Fabric', version: '1.21.1', loader: 'fabric', path: 'inst_1_fabric_121' },
+            { id: 2, name: 'Prueba Vanilla', version: '1.20.1', loader: 'vanilla', path: 'inst_2_vanilla_120' }
+        ];
+        let activeInstance = instances[0];
+        let instanceToDeleteIndex = null;
+        let activeProvider = 'modrinth';
+        let activeContentType = 'mod';
+        let currentLang = 'es';
+
+        const translations = {
+            es: { welcome: "Bienvenido a RCLauncher Terminal...\nEscribe 'start' para iniciar la interfaz gráfica.\n", commandNotFound: "Comando no reconocido.\n", launching: "Iniciando...\n", none: "Ninguna" },
+            us: { welcome: "Welcome to RCLauncher Terminal...\nType 'start' to initialize the GUI.\n", commandNotFound: "Command not recognized.\n", launching: "Launching...\n", none: "None" }
+        };
+
+        const terminalInput = document.getElementById('terminal-input');
+        const output = document.getElementById('output');
+
+        function initTerminal() {
+            output.innerText = translations[currentLang].welcome;
+            populateVersionsSelect();
+            renderAccounts();
+            renderInstances();
+            updateInstanceConfigUI();
+        }
+
+        function populateVersionsSelect() {
+            const select = document.getElementById('install-version-select');
+            select.innerHTML = '';
+            const versions = [];
+            for (let i = 2; i >= 0; i--) versions.push(`26.${i}`);
+            const subVersions = { 21: 4, 20: 6, 19: 4, 18: 2, 17: 1, 16: 5, 15: 2, 14: 4, 13: 2, 12: 2, 11: 2, 10: 2, 9: 4, 8: 9 };
+            for (let major = 21; major >= 8; major--) {
+                const maxMinor = subVersions[major] || 0;
+                for (let minor = maxMinor; minor >= 0; minor--) {
+                    versions.push(minor === 0 ? `1.${major}` : `1.${major}.${minor}`);
+                }
+            }
+            versions.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                select.appendChild(opt);
+            });
+        }
+
+        terminalInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const command = terminalInput.value.trim().toLowerCase();
+                output.innerText += `> ${terminalInput.value}\n`;
+                terminalInput.value = '';
+                if (['rc launcher', 'rclauncher', 'start', 'rc'].includes(command)) {
+                    output.innerText += translations[currentLang].launching;
+                    document.getElementById('terminal-screen').classList.add('fade-out');
+                    document.getElementById('lang-container').style.display = 'none';
+                    setTimeout(() => { triggerTransition('menu-ui'); }, 500);
+                } else if (command !== '') {
+                    output.innerText += translations[currentLang].commandNotFound;
+                }
+                output.scrollTop = output.scrollHeight;
+            }
+        });
+
+        document.getElementById('btn-es').addEventListener('click', () => setLanguage('es'));
+        document.getElementById('btn-us').addEventListener('click', () => setLanguage('us'));
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.getElementById('btn-es').className = `lang-btn ${lang === 'es' ? 'active' : ''}`;
+            document.getElementById('btn-us').className = `lang-btn ${lang === 'us' ? 'active' : ''}`;
+            output.innerText = translations[lang].welcome;
+            renderAccounts();
+            renderInstances();
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('open'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+        function triggerCustomError(title, message) {
+            document.getElementById('error-title').innerText = title;
+            document.getElementById('error-message-text').innerHTML = message;
+            openModal('errorModal');
+        }
+
+        function goToScreen(screenId) {
+            document.querySelectorAll('.ui-screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function triggerTransition(targetScreenId) {
+            const overlay = document.getElementById('transition-overlay');
+            overlay.classList.add('animate');
+            setTimeout(() => {
+                goToScreen(targetScreenId);
+                overlay.classList.remove('animate');
+            }, 400);
+        }
+
+        function openSettingsTab(tabName) {
+            openModal('settingsModal');
+            switchSettingsTab(tabName);
+        }
+
+        function switchSettingsTab(tabName) {
+            document.querySelectorAll('.settings-tab-page').forEach(page => page.style.display = 'none');
+            document.getElementById('tab-btn-general').classList.remove('active');
+            document.getElementById('tab-btn-java').classList.remove('active');
+            document.getElementById('tab-btn-instance').classList.remove('active');
+
+            if (tabName === 'general') {
+                document.getElementById('tab-content-general').style.display = 'flex';
+                document.getElementById('tab-btn-general').classList.add('active');
+            } else if (tabName === 'java') {
+                document.getElementById('tab-content-java').style.display = 'flex';
+                document.getElementById('tab-btn-java').classList.add('active');
+            } else if (tabName === 'instance') {
+                document.getElementById('tab-content-instance').style.display = 'flex';
+                document.getElementById('tab-btn-instance').classList.add('active');
+                updateInstanceConfigUI();
+            }
+        }
+
+        function updateInstanceConfigUI() {
+            if (activeInstance) {
+                document.getElementById('cfg-inst-name').value = `${activeInstance.name} (Minecraft ${activeInstance.version} - ${activeInstance.loader.toUpperCase()})`;
+                document.getElementById('cfg-inst-filepath').value = `instances/${activeInstance.path}`;
+            } else {
+                document.getElementById('cfg-inst-name').value = "Ninguna instancia seleccionada";
+                document.getElementById('cfg-inst-filepath').value = "N/A";
+            }
+        }
+
+        function openInstanceFolder() {
+            if (!activeInstance) {
+                triggerCustomError("Error de Selección", "No tienes ninguna instancia activa seleccionada.");
+                return;
+            }
+            if (window.electronAPI && window.electronAPI.openFolder) {
+                window.electronAPI.openFolder(activeInstance.path);
+            } else {
+                alert(activeInstance.path);
+            }
+        }
+
+        function selectAndOpenInstanceConfig(inst) {
+            activeInstance = inst;
+            renderInstances();
+            openSettingsTab('instance');
+        }
+
+        function renderInstances() {
+            const gridContainer = document.getElementById('instancesGridContainer');
+            if (!gridContainer) return;
+            gridContainer.innerHTML = '';
+
+            instances.forEach((inst, index) => {
+                const card = document.createElement('div');
+                card.className = `instance-card ${activeInstance && activeInstance.id === inst.id ? 'selected' : ''}`;
+                card.onclick = () => { activeInstance = inst; renderInstances(); updateInstanceConfigUI(); };
+
+                card.innerHTML = `
+                    <div class="card-actions-overlay">
+                        <button class="card-action-btn btn-cfg" title="Configuración de esta Instancia" onclick="event.stopPropagation(); selectAndOpenInstanceConfig(instances[${index}])">CFG</button>
+                        <button class="card-action-btn" title="Eliminar Instancia" onclick="event.stopPropagation(); promptDeleteInstance(${index})">X</button>
+                    </div>
+                    <div class="card-logo-placeholder">${inst.loader.substring(0,2).toUpperCase()}</div>
+                    <h4>${inst.name}</h4>
+                    <span>v${inst.version} (${inst.loader})</span>
+                `;
+                gridContainer.appendChild(card);
+            });
+
+            document.getElementById('display-active-instance').innerText = activeInstance ? `${activeInstance.name} (${activeInstance.version})` : translations[currentLang].none;
+        }
+
+        function promptDeleteInstance(index) {
+            instanceToDeleteIndex = index;
+            const inst = instances[index];
+            document.getElementById('delete-confirm-text').innerText = `¿Eliminar "${inst.name}" (v${inst.version})?`;
+            
+            document.getElementById('confirm-delete-btn').onclick = () => {
+                instances.splice(instanceToDeleteIndex, 1);
+                if (activeInstance === inst) activeInstance = instances[0] || null;
+                renderInstances();
+                updateInstanceConfigUI();
+                closeModal('deleteModal');
+            };
+
+            openModal('deleteModal');
+        }
+
+        function installNewInstance() {
+            const ver = document.getElementById('install-version-select').value;
+            const customName = document.getElementById('install-custom-name').value.trim();
+            const loader = document.getElementById('install-loader-select').value.toLowerCase();
+
+            const name = customName.length > 0 ? customName : `Instancia ${ver} ${loader.toUpperCase()}`;
+            const newInst = { id: Date.now(), name: name, version: ver, loader: loader, path: `inst_${Date.now()}_${loader}` };
+
+            instances.push(newInst);
+            activeInstance = newInst;
+            renderInstances();
+            updateInstanceConfigUI();
+            
+            if (window.electronAPI && window.electronAPI.createInstance) {
+                window.electronAPI.createInstance(newInst);
+            }
+
+            if (loader === 'fabric') {
+                installFabricAPI(ver, newInst.path);
+            }
+
+            document.getElementById('install-custom-name').value = '';
+            closeModal('versionsModal');
+        }
+
+        function addOfflineAccount() {
+            const input = document.getElementById('new-offline-name');
+            const name = input.value.trim();
+            if (!name) return;
+
+            const existing = accounts.find(a => a.name.toLowerCase() === name.toLowerCase());
+            if (existing) {
+                activeAccount = existing;
+            } else {
+                const newAcc = { name: name, type: 'local' };
+                accounts.push(newAcc);
+                activeAccount = newAcc;
+            }
+            input.value = '';
+            renderAccounts();
+        }
+
+        function addMicrosoftAccount() {
+            if (window.electronAPI && window.electronAPI.loginMicrosoft) {
+                window.electronAPI.loginMicrosoft();
+            } else {
+                const newAcc = { name: "MicrosoftUser" + Math.floor(Math.random() * 100), type: 'microsoft' };
+                accounts.push(newAcc);
+                activeAccount = newAcc;
+                renderAccounts();
+            }
+        }
+
+        function selectAccount(name) {
+            activeAccount = accounts.find(a => a.name === name);
+            renderAccounts();
+        }
+
+        function removeAccount(name) {
+            accounts = accounts.filter(a => a.name !== name);
+            if (activeAccount && activeAccount.name === name) {
+                activeAccount = accounts.length > 0 ? accounts[0] : null;
+            }
+            renderAccounts();
+        }
+
+        function renderAccounts() {
+            const container = document.getElementById('accountsListContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            accounts.forEach(acc => {
+                const div = document.createElement('div');
+                div.className = `account-item ${activeAccount && activeAccount.name === acc.name ? 'active-acc' : ''}`;
+                
+                const typeColor = acc.type === 'microsoft' ? '#00a4ef' : '#888';
+                
+                div.innerHTML = `
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 14px; color: #fff; font-weight: bold;">${acc.name}</span>
+                        <span style="font-size: 11px; color: ${typeColor}; text-transform: capitalize;">${acc.type}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn-action btn-offline" style="width: auto; padding: 4px 10px; font-size: 11px;" onclick="selectAccount('${acc.name}')">Usar</button>
+                        <button class="btn-del-account" title="Eliminar cuenta" onclick="removeAccount('${acc.name}')">X</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('display-active-account').innerText = activeAccount ? activeAccount.name : translations[currentLang].none;
+        }
+
+        function openModsModal() {
+            if (!activeInstance) {
+                triggerCustomError("Instancia Requerida", "No tienes la instancia necesaria seleccionada o instalada.");
+                return;
+            }
+            document.getElementById('mods-target-title').innerText = `Buscar Mods para: ${activeInstance.name} (v${activeInstance.version})`;
+            activeContentType = 'mod';
+            openModal('modsModal');
+            searchContentAPI();
+        }
+
+        function openModpacksModal() {
+            document.getElementById('mods-target-title').innerText = "Buscar Modpacks Globales";
+            activeContentType = 'modpack';
+            openModal('modsModal');
+            searchContentAPI();
+        }
+
+        function switchProvider(provider) {
+            activeProvider = provider;
+            document.getElementById('btn-provider-modrinth').className = `platform-btn modrinth ${provider === 'modrinth' ? 'active' : ''}`;
+            document.getElementById('btn-provider-curseforge').className = `platform-btn curseforge ${provider === 'curseforge' ? 'active' : ''}`;
+            searchContentAPI();
+        }
+
+        async function searchContentAPI() {
+            const query = document.getElementById('mod-search-input').value.trim();
+            const resultsContainer = document.getElementById('mods-search-results');
+            
+            if (!activeInstance && activeContentType === 'mod') return;
+
+            resultsContainer.innerHTML = `<p style="color: #aaa; font-size: 13px; text-align: center;">Cargando contenido desde ${activeProvider.toUpperCase()}...</p>`;
+
+            try {
+                let facetsArray = [];
+                
+                if (activeContentType === 'modpack') {
+                    facetsArray.push([`project_type:modpack`]);
+                } else {
+                    facetsArray.push([`project_type:mod`]);
+                    facetsArray.push([`versions:${activeInstance.version}`]);
+                    if (activeInstance.loader && activeInstance.loader !== 'vanilla') {
+                        facetsArray.push([`categories:${activeInstance.loader.toLowerCase()}`]);
+                    }
+                }
+
+                const facets = encodeURIComponent(JSON.stringify(facetsArray));
+                let searchUrl = `https://api.modrinth.com/v2/search?facets=${facets}&index=downloads`;
+                
+                if (query.length > 0) {
+                    searchUrl = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${facets}&index=relevance`;
+                }
+
+                const response = await fetch(searchUrl, { headers: { 'User-Agent': 'RCLauncher/1.0.0' } });
+                const data = await response.json();
+
+                resultsContainer.innerHTML = '';
+                if (!data.hits || data.hits.length === 0) {
+                    resultsContainer.innerHTML = `<p style="color: #ff5252; font-size: 13px; text-align: center;">No se encontraron resultados compatibles.</p>`;
+                    return;
+                }
+
+                data.hits.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'mod-result-card';
+                    
+                    const iconUrl = item.icon_url || 'https://raw.githubusercontent.com/modrinth/assets/main/brand/icon.png';
+                    const description = item.description ? item.description.substring(0, 75) + '...' : 'Sin descripción disponible.';
+                    const safeTitle = item.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                    card.innerHTML = `
+                        <div class="mod-result-header">
+                            <div style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
+                                <img src="${iconUrl}" class="mod-icon" alt="${item.title}" onerror="this.src='https://raw.githubusercontent.com/modrinth/assets/main/brand/icon.png'" />
+                                <div style="display: flex; flex-direction: column; overflow: hidden;">
+                                    <h4 style="margin: 0; color: #fff; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.title}</h4>
+                                    <span style="font-size: 11px; color: #888;">${description}</span>
+                                </div>
+                            </div>
+                            <button class="btn-action btn-offline" style="width: auto; padding: 6px 14px; font-size: 12px; flex-shrink: 0;" onclick="handleInstallAction('${safeTitle}', '${item.project_id}')">Instalar</button>
+                        </div>
+                        <div id="versions-selector-${item.project_id}" style="display: none; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid #333;"></div>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error(err);
+                resultsContainer.innerHTML = `<p style="color: #ff5252; font-size: 13px; text-align: center;">Error al conectar con el servidor.</p>`;
+            }
+        }
+
+        async function handleInstallAction(title, projectId) {
+            if (activeContentType === 'modpack') {
+                const versionsContainer = document.getElementById(`versions-selector-${projectId}`);
+                if (versionsContainer.style.display === 'flex') {
+                    versionsContainer.style.display = 'none';
+                    return;
+                }
+
+                versionsContainer.style.display = 'flex';
+                versionsContainer.innerHTML = `<span style="font-size: 11px; color: #aaa;">Obteniendo versiones compatibles...</span>`;
+
+                try {
+                    const res = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`, {
+                        headers: { 'User-Agent': 'RCLauncher/1.0.0' }
+                    });
+                    const versions = await res.json();
+
+                    if (!versions || versions.length === 0) {
+                        versionsContainer.innerHTML = `<span style="font-size: 11px; color: #ff5252;">No hay versiones disponibles.</span>`;
+                        return;
+                    }
+
+                    versionsContainer.innerHTML = `<label style="font-size: 11px; color: #4CAF50; font-weight: bold;">Selecciona la versión del Modpack:</label>`;
+                    const select = document.createElement('select');
+                    select.style.cssText = "background: #111; color: white; border: 1px solid #444; padding: 6px; border-radius: 4px; font-size: 12px;";
+
+                    versions.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = JSON.stringify({ url: v.files[0]?.url, gameVersions: v.game_versions, loaders: v.loaders, name: v.name });
+                        opt.textContent = `${v.name} (MC ${v.game_versions.join(', ')})`;
+                        select.appendChild(opt);
+                    });
+
+                    const btnConfirm = document.createElement('button');
+                    btnConfirm.className = 'btn-action btn-offline';
+                    btnConfirm.style.cssText = 'padding: 6px; font-size: 12px; width: 100%; margin-top: 4px;';
+                    btnConfirm.innerText = 'Confirmar e Instalar Modpack';
+
+                    btnConfirm.onclick = () => {
+                        const selectedData = JSON.parse(select.value);
+                        verifyAndDownloadModpack(title, selectedData);
+                    };
+
+                    versionsContainer.appendChild(select);
+                    versionsContainer.appendChild(btnConfirm);
+
+                } catch (e) {
+                    versionsContainer.innerHTML = `<span style="font-size: 11px; color: #ff5252;">Error al cargar las versiones.</span>`;
+                }
+            } else {
+                downloadAndInstallMod(title, projectId);
+            }
+        }
+
+
+        async function downloadAndInstallMod(title, projectId) {
+            if (!activeInstance) {
+                triggerCustomError("Instancia Requerida", "Selecciona una instancia activa antes de instalar un mod.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`, {
+                    headers: { 'User-Agent': 'RCLauncher/1.0.0' }
+                });
+                const versions = await res.json();
+
+                if (!versions || versions.length === 0) {
+                    triggerCustomError("Error", "No hay versiones disponibles para este mod.");
+                    return;
+                }
+
+                const matchedVersion = versions.find(v => 
+                    v.game_versions.includes(activeInstance.version) && 
+                    (activeInstance.loader === 'vanilla' || v.loaders.includes(activeInstance.loader))
+                ) || versions[0];
+
+                const primaryFile = matchedVersion.files.find(f => f.primary) || matchedVersion.files[0];
+
+                if (!primaryFile) {
+                    triggerCustomError("Error", "No se encontró un archivo .jar válido para descargar.");
+                    return;
+                }
+
+                simulateProgressDownload(title, primaryFile.url, activeInstance.path, primaryFile.filename);
+
+            } catch (error) {
+                console.error(error);
+                triggerCustomError("Error de Red", "No se pudo conectar con la API de Modrinth para descargar el mod.");
+            }
+        }
+
+        function verifyAndDownloadModpack(title, packData) {
+            if (!packData.url) {
+                triggerCustomError("Error de Enlace", "No se encontró el archivo de descarga para esta versión.");
+                return;
+            }
+
+            const requiredGameVersion = packData.gameVersions[0];
+            let loaderType = 'vanilla';
+            if (packData.loaders.includes('fabric')) loaderType = 'fabric';
+            else if (packData.loaders.includes('forge')) loaderType = 'forge';
+
+            const newInst = { id: Date.now(), name: `Modpack: ${title}`, version: requiredGameVersion, loader: loaderType, path: `inst_${Date.now()}_${loaderType}` };
+            instances.push(newInst);
+            activeInstance = newInst;
+            renderInstances();
+            updateInstanceConfigUI();
+            
+            simulateProgressDownload(`Modpack: ${title}`, packData.url, newInst.path, null);
+        }
+
+        function simulateProgressDownload(itemTitle, downloadUrl, targetPath, fileName) {
+            const box = document.getElementById('downloadProgressBox');
+            const fill = document.getElementById('downloadProgressBar');
+            const statusTxt = document.getElementById('downloadStatusText');
+            const percentTxt = document.getElementById('downloadPercentText');
+
+            if (box) box.style.display = 'flex';
+            if (fill) fill.style.width = '0%';
+            if (statusTxt) statusTxt.innerText = `Descargando ${itemTitle}...`;
+            if (percentTxt) percentTxt.innerText = '0%';
+
+            if (window.electronAPI) {
+                if (itemTitle.startsWith("Modpack:")) {
+                    window.electronAPI.downloadModpack({ 
+                        title: itemTitle, 
+                        downloadUrl: downloadUrl,
+                        instancePath: targetPath
+                    });
+                } else if (window.electronAPI.downloadMod) {
+                    window.electronAPI.downloadMod({ 
+                        title: itemTitle, 
+                        downloadUrl: downloadUrl, 
+                        instancePath: targetPath,
+                        fileName: fileName 
+                    });
+                }
+
+                window.electronAPI.onDownloadProgress((data) => {
+                    if (fill) fill.style.width = `${data.percent}%`;
+                    if (percentTxt) percentTxt.innerText = `${Math.round(data.percent)}%`;
+                });
+
+                window.electronAPI.onDownloadComplete((data) => {
+                    if (fill) fill.style.width = '100%';
+                    if (percentTxt) percentTxt.innerText = '100%';
+                    if (statusTxt) statusTxt.innerText = `¡Listo! Instalado en la instancia`;
+                    if (box) setTimeout(() => { box.style.display = 'none'; }, 3500);
+                });
+
+                window.electronAPI.onDownloadError((err) => {
+                    if (statusTxt) statusTxt.innerText = `Error: ${err}`;
+                    if (fill) fill.style.background = 'red';
+                    if (box) setTimeout(() => { box.style.display = 'none'; }, 3500);
+                });
+            } else {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.floor(Math.random() * 15) + 5;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        if (fill) fill.style.width = '100%';
+                        if (percentTxt) percentTxt.innerText = '100%';
+                        if (statusTxt) statusTxt.innerText = `¡Listo! Instalado en /instances/${targetPath}`;
+                        if (box) setTimeout(() => { box.style.display = 'none'; }, 3500);
+                    } else {
+                        if (fill) fill.style.width = `${progress}%`;
+                        if (percentTxt) percentTxt.innerText = `${progress}%`;
+                    }
+                }, 200);
+            }
+        }
+    
+        function getRequiredJavaVersion(mcVersion) {
+            const parts = mcVersion.split('.').map(Number);
+            const minor = parts[1] || 0;
+            const patch = parts[2] || 0;
+            if (minor > 20 || (minor === 20 && patch >= 5) || minor >= 21) return 21;
+            if (minor >= 18) return 17;
+            return 8;
+        }
+
+        function playGame() {
+            if (!activeInstance) {
+                triggerCustomError("Error de Inicio", "No tienes la instancia necesaria elegida o creada.");
+                return;
+            }
+            if (!activeAccount) {
+                triggerCustomError("Cuenta Faltante", "Por favor registra o selecciona una cuenta antes de iniciar.");
+                return;
+            }
+
+            const selectedJava = document.getElementById('cfg-java-version').value;
+            const requiredJava = getRequiredJavaVersion(activeInstance.version);
+
+            if (selectedJava === 'none') {
+                triggerCustomError("Error de Runtime Java", `<b>No se detectó una instalación de Java válida.</b>`);
+                return;
+            }
+
+            const numSelectedJava = parseInt(selectedJava);
+            if (numSelectedJava < requiredJava) {
+                triggerCustomError("Incompatibilidad de Java", `<b>Versión de Java incorrecta.</b>`);
+                return;
+            }
+
+            document.getElementById('status-offline').innerText = "Iniciando juego...";
+            
+            if (window.electronAPI && window.electronAPI.launchGame) {
+                window.electronAPI.launchGame({
+                    instance: {
+                        id: activeInstance.id,
+                        name: activeInstance.name,
+                        version: activeInstance.version,
+                        loader: (activeInstance.loader || 'vanilla').toLowerCase(),
+                        path: activeInstance.path
+                    },
+                    account: activeAccount,
+                    javaVersion: selectedJava,
+                    javaPath: document.getElementById('cfg-java-path').value,
+                    ram: document.getElementById('cfg-ram-amount').value
+                });
+            } else {
+                setTimeout(() => {
+                    document.getElementById('status-offline').innerText = "Fallo";
+                }, 1500);
+            }
+        }
+
+
+        async function buscarMods(query) {
+            try {
+                const respuesta = await fetch(`https://api.modrinth.com/v2/search?query=${query}`);
+                const resultado = await respuesta.json();
+                return resultado.hits; 
+            } catch (error) {
+                console.error("Error al buscar mods:", error);
+            }
+        }
+
+
+        async function instalarModDeLaAPI(projectId, nombreMod, instanceName) { 
+            try { 
+                console.log(`Buscando enlaces de descarga para ${nombreMod}...`); 
+                 
+                const res = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`); 
+                const versiones = await res.json(); 
+
+                if (versiones.length === 0) { 
+                    alert("No hay versiones disponibles para este mod."); 
+                    return; 
+                } 
+
+                const versionReciente = versiones[0]; 
+                const archivoJar = versionReciente.files.find(f => f.primary) || versionReciente.files[0]; 
+
+                const datosDelMod = { 
+                    title: nombreMod, 
+                    downloadUrl: archivoJar.url,  
+                    instancePath: instanceName   
+                }; 
+
+                window.electronAPI.downloadMod(datosDelMod); 
+                console.log(`¡Descarga iniciada para: ${nombreMod}!`); 
+
+            } catch (error) { 
+                console.error("Error al obtener el mod:", error); 
+            } 
+        } 
+
+        async function crearNuevaInstancia() {
+            const nameInput = document.getElementById('new-instance-name');
+            const versionSelect = document.getElementById('new-instance-version');
+            const zipInput = document.getElementById('zip-file-input');
+
+            const name = nameInput ? nameInput.value.trim() : '';
+            const version = versionSelect ? versionSelect.value : '1.21.1';
+            const zipFile = (zipInput && zipInput.files.length > 0) ? zipInput.files[0] : null;
+
+            if (!name) {
+                alert("Por favor escribe un nombre para la instancia.");
+                return;
+            }
+
+            const instanceData = {
+                name: name,
+                version: version,
+                hasZip: !!zipFile,
+                zipPath: zipFile ? zipFile.path : null
+            };
+
+            window.electronAPI.createInstance(instanceData);
+            console.log("Creando instancia con datos:", instanceData);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { 
+            
+            if (window.electronAPI) {
+                window.electronAPI.onDownloadProgress((data) => {
+                    const progressBar = document.getElementById('download-progress');
+                    const downloadStatus = document.getElementById('download-status');
+                    const container = document.getElementById('download-container');
+                    
+                    if (container) container.style.display = 'block';
+                    if (progressBar) progressBar.value = data.percentage || 0;
+                    if (downloadStatus) downloadStatus.innerText = `Descargando: ${Math.round(data.percentage || 0)}%`;
+                });
+
+                window.electronAPI.onDownloadComplete((data) => {
+                    const downloadStatus = document.getElementById('download-status');
+                    if (downloadStatus) downloadStatus.innerText = "¡Descarga completada con éxito!";
+                });
+
+                window.electronAPI.onDownloadError((err) => {
+                    const downloadStatus = document.getElementById('download-status');
+                    if (downloadStatus) downloadStatus.innerText = "Error en la descarga.";
+                    console.error("Error de descarga:", err);
+                });
+            }
+
+            const inputBusqueda = document.getElementById('search-input');  
+            const botonBuscar = document.getElementById('search-btn');        
+            const contenedorResultados = document.getElementById('results-container');  
+
+            if (inputBusqueda && contenedorResultados) { 
+                async function ejecutarBusqueda() { 
+                    const query = inputBusqueda.value.trim(); 
+                    if (!query) return; 
+
+                    contenedorResultados.innerHTML = "<p>Buscando mods...</p>"; 
+                    const mods = await buscarMods(query); 
+
+                    contenedorResultados.innerHTML = "";  
+
+                    if (!mods || mods.length === 0) { 
+                        contenedorResultados.innerHTML = "<p>No se encontraron mods.</p>"; 
+                        return; 
+                    } 
+
+                    mods.forEach(mod => { 
+                        const tarjeta = document.createElement('div'); 
+                        tarjeta.className = 'mod-card';  
+                        tarjeta.style.margin = "10px 0"; 
+                        tarjeta.style.padding = "10px"; 
+                        tarjeta.style.border = "1px solid #ccc"; 
+
+                        tarjeta.innerHTML = ` 
+                            <h3>${mod.title}</h3> 
+                            <p>${mod.description || 'Sin descripción'}</p> 
+                            <button class="btn-instalar">Instalar</button> 
+                        `; 
+
+                        const btnInstalar = tarjeta.querySelector('.btn-instalar'); 
+                        btnInstalar.onclick = () => { 
+                          
+                            const instanciaActiva = "nombre-de-tu-instancia";  
+                            instalarModDeLaAPI(mod.project_id, mod.title, instanciaActiva); 
+                        }; 
+
+                        contenedorResultados.appendChild(tarjeta); 
+                    }); 
+                } 
+
+                if (botonBuscar) botonBuscar.onclick = ejecutarBusqueda; 
+                inputBusqueda.addEventListener('keypress', (e) => { 
+                    if (e.key === 'Enter') ejecutarBusqueda(); 
+                }); 
+            } 
+        }); 
+
+        async function buscarModpacks(query) {
+            try {
+                const respuesta = await fetch(`https://api.modrinth.com/v2/search?query=${query}&facets=[["project_type:modpack"]]`);
+                const resultado = await respuesta.json();
+                return resultado.hits; 
+            } catch (error) {
+                console.error("Error al buscar modpacks:", error);
+            }
+        }
+
+        async function instalarModpackDeLaAPI(projectId, nombreModpack) {
+            try {
+                console.log(`Buscando archivos para el modpack ${nombreModpack}...`);
+                
+                const res = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`);
+                const versiones = await res.json();
+
+                if (versiones.length === 0) {
+                    alert("No hay versiones disponibles para este modpack.");
+                    return;
+                }
+
+                const versionReciente = versiones[0];
+                const archivoMrpack = versionReciente.files.find(f => f.filename.endsWith('.mrpack')) || versionReciente.files[0];
+
+                const datosDelModpack = {
+                    title: nombreModpack,
+                    downloadUrl: archivoMrpack.url
+                };
+
+
+                window.electronAPI.downloadModpack(datosDelModpack);
+                console.log(`¡Procesando descarga e instalación del modpack: ${nombreModpack}!`);
+
+            } catch (error) {
+                console.error("Error al obtener el modpack:", error);
+            }
+        }
+
+        window.onload = initTerminal; 
+    </script> 
+</body> 
+</html>
