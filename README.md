@@ -9,7 +9,7 @@ Discord: [Únete al servidor](https://discord.gg/hhTR7aujTU)
 
 ## Features
 * 🚀 Easy management of Fabric and Forge versions.
-* 🔐 Microsoft Account Authentication support.
+* 🔐 Microsoft Account Authentication support.not yet
 * ⚡ Fast downloads and automated modpack handling.
 
 ---
