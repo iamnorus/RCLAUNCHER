@@ -2,7 +2,7 @@
 
 Custom Minecraft launcher for Fabric and Forge built with Electron.
 
-Website: [Pagina Oficial](https://rclauncher.base44.app)
+Website: [official website](https://rclauncher.base44.app)
 Discord: [Únete al servidor](https://discord.gg/hhTR7aujTU)
 
 ---
