@@ -17,7 +17,7 @@ Discord: [Únete al servidor](https://discord.gg/hhTR7aujTU)
 ## Installation
 
 ### For normal users
-1. Go to the [Releases](https://github.com/tu-usuario/rclauncher/releases) page.
+1. Go to the [Releases](https://github.com/iamnorus/RCLAUNCHER/releases/tag/RCLAUNCHER) page.
 2. Download the latest installer or executable for your operating system.
 3. Run it and enjoy!
 
