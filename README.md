@@ -8,9 +8,9 @@ Discord: [Join the Discord.](https://discord.gg/hhTR7aujTU)
 ---
 
 ## Features
-* 🚀 Easy management of Fabric and Forge versions.
-* 🔐 Microsoft Account Authentication support.not yet
-* ⚡ Fast downloads and automated modpack handling.
+*  Easy management of Fabric and Forge versions.
+*  Microsoft Account Authentication support.not yet
+*  Fast downloads and automated modpack handling.
 
 ---
 
@@ -21,10 +21,4 @@ Discord: [Join the Discord.](https://discord.gg/hhTR7aujTU)
 2. Download the latest installer or executable for your operating system.
 3. Run it and enjoy!
 
-### For developers (Building from source)
-Make sure you have Node.js and npm installed on your system.
-
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/iamnorus/rclauncher.git](https://github.com/iamnorus/rclauncher.git)
-   cd rclauncher
+*   **Sigueme pa:** Buscame como iamnorus en youtube y tiktok
