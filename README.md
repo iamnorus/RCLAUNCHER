@@ -21,4 +21,4 @@ Discord: [Join the Discord.](https://discord.gg/hhTR7aujTU)
 2. Download the latest installer or executable for your operating system.
 3. Run it and enjoy!
 
-*   **Sigueme pa:** Buscame como iamnorus en youtube y tiktok
+*   **Sigueme pa:** Buscame como thenorus en youtube y tiktok
